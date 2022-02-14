@@ -1,19 +1,11 @@
 #ifndef ADELE_CONTROL_2_ADELEHWINTERFACE
 #define ADELE_CONTROL_2_ADELEHWINTERFACE
 
-#include <ros/ros.h>
-#include <urdf/model.h>
+#include <ros_control_boilerplate/generic_hw_interface.h>
 
-
-#include <hardware_interface/robot_hw.h>
-#include <hardware_interface/joint_state_interface.h>
-#include <hardware_interface/joint_command_interface.h>
-#include <controller_manager/controller_manager.h>
-#include <joint_limits_interface/joint_limits.h>
-#include <joint_limits_interface/joint_limits_interface.h>
-#include <joint_limits_interface/joint_limits_rosparam.h>
-#include <joint_limits_interface/joint_limits_urdf.h>
 #include <std_msgs/Float64.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
+#include <trajectory_msgs/JointTrajectory.h>
 
 
 #include<transmission_interface/transmission_interface_loader.h>
@@ -26,30 +18,26 @@
 //LINK: https://github.com/PickNikRobotics/ros_control_boilerplate
 
 namespace adele_control_2{
-class AdeleHW: public hardware_interface::RobotHW{
+class AdeleHW: public ros_control_boilerplate::GenericHWInterface{
 public:
-    AdeleHW();
-    AdeleHW(const ros::NodeHandle& nh, urdf::Model* urdf_model);
-    ~AdeleHW();
-
    
+    AdeleHW(const ros::NodeHandle& nh, urdf::Model* urdf_model);
 
     bool initializeHardware();
     
-
-    void updateJointsFromHardware();
+    void updateJointsFromHardware(trajectory_msgs::JointTrajectoryPoint &point);
     void writeCommandsToHardware();
+    
+    
+    virtual void read(ros::Duration& elapsed_time);
+    virtual void write(ros::Duration& elapsed_time);
 
-    void update(const ros::TimerEvent& ev);
-    void read(ros::Duration& elapsed_time);
-    void write(ros::Duration& elapsed_time);
-
-    void read(ros::Time& time, ros::Duration& period);
-    void write(ros::Time& time, ros::Duration& period);
     //void reset();
 
-    void directCommandWrite(int linkNo, double commandValue);
-    double directCommandAccess(int linkNo);
+    //void directCommandWrite(int linkNo, double commandValue);
+    //double directCommandAccess(int linkNo);
+
+    virtual void enforceLimits(ros::Duration& period);
 
     virtual bool checkForConflict(...) const;
 
@@ -85,10 +73,8 @@ private:
     };
     JointWithPos actuators[6];
     
-    std::vector<std::string> joint_names_;
+    //std::vector<std::string> joint_names_;
     std::vector<std::string> actuator_names_;
-
-    double homePose[6] = {0, 1.57, 1.57, 1.567, -1.57, 0};
 
 
 
@@ -96,20 +82,20 @@ private:
 protected:
     std::string name_;
 
-    virtual void loadURDF(const ros::NodeHandle& nh, std::string param_name);
-    ros::NodeHandle nh_;
+    virtual void loadURDF(const ros::NodeHandle& nh, std::string param_name) override;
+    //ros::NodeHandle nh_;
     std::string urdf_string;
-    urdf::Model* urdf_model_;
+    //urdf::Model* urdf_model_;
 
 
     ros::Publisher trajPublisher;
 
     // ros::Timer my_control_loop;
     ros::Duration elapsed_time;
-    double loopHz;
+    //double loopHz;
     boost::shared_ptr<controller_manager::ControllerManager> controllerManager;
-    // std::array<ros::Subscriber, 6> trajSub;
-    bool directControl;
+    
+    //bool directControl;
 };
 }
 #endif 

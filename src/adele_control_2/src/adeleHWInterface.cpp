@@ -1,8 +1,7 @@
 #include<adele_control_2/adeleHWInterface.h>
 #include<ros/console.h>
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
-#include<control_msgs/FollowJointTrajectoryAction.h>
-#include<trajectory_msgs/JointTrajectory.h>
+
 
 //This code has largely been repurposed from the ros_control_boilerplate generic_hw_interface script
 //LINK: https://github.com/PickNikRobotics/ros_control_boilerplate
@@ -10,45 +9,35 @@
 namespace adele_control_2
 {
 
-AdeleHW::AdeleHW(){
-    //default constructor, do not use
-}
 
 AdeleHW::AdeleHW(const ros::NodeHandle& nh, urdf::Model* urdf_model):
-    nh_(nh), urdf_model_(urdf_model), name_("adele_hw_interface")
+    GenericHWInterface(nh, urdf_model), name_("adele_hw_interface")
 {
     
     
 
-    if (urdf_model == NULL)
-        loadURDF(nh, "/robot_description");
-    else
-        urdf_model_ = urdf_model;
+    // if (urdf_model == NULL)
+    //     loadURDF(nh, "/robot_description");
+    // else
+    //     urdf_model_ = urdf_model;
 
   // Load rosparams
     
     ros::NodeHandle rpnh(
       nh_, name_);
     ROS_INFO_STREAM("Param access nodeHandle generated");
-    controllerManager.reset(new controller_manager::ControllerManager(this, nh_));
     
     std::size_t error = 0;
     error += !rosparam_shortcuts::get(name_, rpnh, "actuators", actuator_names_);
-    error += !rosparam_shortcuts::get(name_, rpnh, "joints", joint_names_);
+    // error += !rosparam_shortcuts::get(name_, rpnh, "joints", joint_names_);
     rosparam_shortcuts::shutdownIfError(name_, error);
     ROS_INFO_STREAM("Actuator and joint params retrieved.");
 
-    directControl = true;
+    //directControl = true;
 
     //ros::ServiceClient jntTraj = nh_.serviceClient<control_msgs::FollowJointTrajectoryAction>("followTraj");
-    ros::Publisher trajPublisher = nh_.advertise<trajectory_msgs::JointTrajectoryPoint> ("AdeleHW/real_actuator_trajectory", 1000);
-
     ROS_INFO_STREAM("Constructor Success");
 }
-
-AdeleHW::~AdeleHW() {
-    delete(urdf_model_);
-}  
 
 bool AdeleHW::loadTransmissions(){
         using namespace transmission_interface;
@@ -128,6 +117,7 @@ void AdeleHW::registerActuatorInterfaces(){
 bool AdeleHW::initializeHardware(){
 // Register interfaces with the RobotHW interface manager, allowing ros_control operation
     ROS_INFO_STREAM("Beginning Hardware Initialization");
+    GenericHWInterface::init();
     registerActuatorInterfaces();
     // Load transmission information from URDF
     if(!loadTransmissions()){return false;}
@@ -200,7 +190,7 @@ void AdeleHW::reset()
 
 
 
-void AdeleHW::updateJointsFromHardware(){
+void AdeleHW::updateJointsFromHardware(trajectory_msgs::JointTrajectoryPoint &point){
     //TODO: provide script to read from MCU
     act_to_jnt_state_->propagate();
     size_t num_joints = joint_names_.size();
@@ -220,19 +210,8 @@ void AdeleHW::writeCommandsToHardware(){
     
 }
 
-void AdeleHW::read(ros::Time& time, ros::Duration& period){
-    ros::Duration elapsed_time = period;
-    read(elapsed_time);
-}
-
-void AdeleHW::write(ros::Time& time, ros::Duration& period){
-    ros::Duration elapsed_time = period;
-    write(elapsed_time);
-}
-
 void AdeleHW::read(ros::Duration& elapsed_time){
     size_t num_joints = joint_names_.size();
-    updateJointsFromHardware();
     //trajPublisher.publish()
 }
 
@@ -252,38 +231,45 @@ void AdeleHW::write(ros::Duration& elapsed_time){
     }
     
 
-    trajPublisher.publish(trajGoal);
-}
-void AdeleHW::directCommandWrite(int linkNo, double commandValue){
-    ROS_INFO_STREAM("Attempting to directly write value "<< commandValue <<" to joint " << joint_names_[linkNo]);
-    if(directControl){
-        hardware_interface::JointHandle backdoorHandle; 
-        try{
-            backdoorHandle = this->get<hardware_interface::PositionJointInterface>()->getHandle(joint_names_[linkNo]);
-        }
-        catch(...){
-        ROS_ERROR_STREAM("HANDLE NOT LATCHED");
-        }
-        ROS_INFO_STREAM("Latched handle");
-        
-        backdoorHandle.setCommand(commandValue);
-        ROS_INFO_STREAM("Joint "<<joint_names_[linkNo]<<" command: "<<backdoorHandle.getCommand());
-    }    
-    else{
-        ROS_ERROR_STREAM("Direct Control has NOT been enabled!");
-    }
+    //trajPublisher.publish(trajGoal);
 }
 
-double AdeleHW::directCommandAccess(int linkNo){
-    if(directControl){
-        ROS_INFO_STREAM(actuators[linkNo].command); 
-        return actuators[linkNo].command;
-    }
-    else{
-        ROS_ERROR_STREAM("Direct Control has NOT been enabled!");
-        return 0;
-    }
+void AdeleHW::enforceLimits(ros::Duration& period)
+{
+  // Enforces position and velocity
+  pos_jnt_sat_interface_.enforceLimits(period);
 }
+
+// void AdeleHW::directCommandWrite(int linkNo, double commandValue){
+//     ROS_INFO_STREAM("Attempting to directly write value "<< commandValue <<" to joint " << joint_names_[linkNo]);
+//     if(directControl){
+//         hardware_interface::JointHandle backdoorHandle; 
+//         try{
+//             backdoorHandle = this->get<hardware_interface::PositionJointInterface>()->getHandle(joint_names_[linkNo]);
+//         }
+//         catch(...){
+//         ROS_ERROR_STREAM("HANDLE NOT LATCHED");
+//         }
+//         ROS_INFO_STREAM("Latched handle");
+        
+//         backdoorHandle.setCommand(commandValue);
+//         ROS_INFO_STREAM("Joint "<<joint_names_[linkNo]<<" command: "<<backdoorHandle.getCommand());
+//     }    
+//     else{
+//         ROS_ERROR_STREAM("Direct Control has NOT been enabled!");
+//     }
+// }
+
+// double AdeleHW::directCommandAccess(int linkNo){
+//     if(directControl){
+//         ROS_INFO_STREAM(actuators[linkNo].command); 
+//         return actuators[linkNo].command;
+//     }
+//     else{
+//         ROS_ERROR_STREAM("Direct Control has NOT been enabled!");
+//         return 0;
+//     }
+// }
 
 bool AdeleHW::checkForConflict(...) const {
     return false;
