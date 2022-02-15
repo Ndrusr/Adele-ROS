@@ -32,41 +32,29 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 /* Author: Timothy Ng
-    Desc: Control Loop for the 6DOF cooking robot arm "ADELE"
+    Desc: Main Program for the 6DOF cooking robot arm "ADELE"
 */
+#include <adele_control_2/adeleControlLoop.h>
+#include <adele_control_2/adeleHWInterface.h>
 
-#include<time.h>
-#include<controller_manager/controller_manager.h>
-#include<hardware_interface/hardware_interface.h>
-
-namespace adele_control_2{
-static const double BILLION = 1000000000.0;
-
-class AdeleHWControlLoop
+int main(int argc, char** argv)
 {
+  ros::init(argc, argv, "adele_hw_interface");
+  ros::NodeHandle nh;
 
-public:
-    AdeleHWControlLoop(ros::NodeHandle& nh, std::shared_ptr<hardware_interface::RobotHW> hardwareInterface);
-    void run();
-protected:
-    void update();
-    
-    ros::NodeHandle nh_;
-    std::string name_ = "AdeleControlLoop";
+  // NOTE: We run the ROS loop in a separate thread as external calls such
+  // as service callbacks to load controllers can block the (main) control loop
+  ros::AsyncSpinner spinner(3);
+  spinner.start();
 
-    ros::Duration desired_update_period;
-    double cycle_time_error_threshold;
-    
-    ros::Duration elapsed_time;
-    double loopHZ;
-    struct timespec lastTime;
-    struct timespec currentTime;
+  // Create the hardware interface specific to your robot
+  std::shared_ptr<adele_control_2::AdeleHW> adele_hw_interface(
+      new adele_control_2::AdeleHW(nh));
+  adele_hw_interface->init();
 
-    std::shared_ptr<controller_manager::ControllerManager> controller_manager_;
+  // Start the control loop
+  adele_control_2::AdeleHWControlLoop control_loop(nh, adele_hw_interface);
+  control_loop.run();  // Blocks until shutdown signal recieved
 
-    std::shared_ptr<hardware_interface::RobotHW> hardware_interface_;
-};
-
-
-    
+  return 0;
 }

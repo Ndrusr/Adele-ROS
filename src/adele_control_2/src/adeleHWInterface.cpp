@@ -1,3 +1,40 @@
+/*********************************************************************
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2015, University of Colorado, Boulder
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Univ of CO, Boulder nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
+/* Author: Timothy Ng
+    Desc: Hardware Interface for the 6DOF cooking robot arm "ADELE"
+*/
+
 #include<adele_control_2/adeleHWInterface.h>
 #include<ros/console.h>
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
@@ -13,9 +50,6 @@ namespace adele_control_2
 AdeleHW::AdeleHW(const ros::NodeHandle& nh, urdf::Model* urdf_model):
     GenericHWInterface(nh, urdf_model), name_("adele_hw_interface")
 {
-    
-    
-
     // if (urdf_model == NULL)
     //     loadURDF(nh, "/robot_description");
     // else
@@ -76,13 +110,12 @@ bool AdeleHW::loadTransmissions(){
 
 
 void AdeleHW::registerActuatorInterfaces(){
-    std::size_t numActuators = 6;
     // ROS_INFO_STREAM("Attempting to register " << numActuators << " actuators:");
     // for (std::size_t i = 0; i < numActuators; i++){
     //     ROS_INFO_STREAM(actuator_names_[i] << " " << i);
     // }
     
-    for (std::size_t i = 0; i < numActuators; i++){
+    for (std::size_t i = 0; i < num_joints_; i++){
         ROS_INFO_STREAM("Starting registration of actuator "<< i );
         hardware_interface::ActuatorStateHandle act_state_handle(actuator_names_[i], 
             &actuators[i].position, &actuators[i].velocity, &actuators[i].effort);
@@ -142,11 +175,11 @@ void AdeleHW::loadURDF(const ros::NodeHandle& nh, std::string param_name)
             nh.getParam(search_param_name, urdf_string);
         }
         catch(std::logic_error e){
-            /* ROS_ERROR_STREAM(e.what());
-            ROS_INFO_STREAM("Extracted parameter: " << urdf_string); */
+            ROS_ERROR_STREAM(e.what());
+            ROS_INFO_STREAM("Extracted parameter: " << urdf_string);
         }
         catch(...){
-            // ROS_ERROR_STREAM("Parameter Extraction failed.");
+            ROS_ERROR_STREAM("Parameter Extraction failed.");
         }
         ROS_INFO_STREAM("xml string retrieved.");
     }
@@ -188,14 +221,15 @@ void AdeleHW::reset()
 }
 */
 
+void AdeleHW::callBackFn(){
+    
+}
 
-
-void AdeleHW::updateJointsFromHardware(trajectory_msgs::JointTrajectoryPoint &point){
+void AdeleHW::updateJointsFromHardware(){
     //TODO: provide script to read from MCU
     act_to_jnt_state_->propagate();
-    size_t num_joints = joint_names_.size();
     double posTmp = 0;
-    for(size_t count = 0; count != num_joints; count++){
+    for(size_t count = 0; count != num_joints_; count++){
         posTmp = this->get<hardware_interface::JointStateInterface>()->getHandle(joint_names_[count]).getPosition();
         actuators[count].jointPos = posTmp;
         
@@ -211,7 +245,7 @@ void AdeleHW::writeCommandsToHardware(){
 }
 
 void AdeleHW::read(ros::Duration& elapsed_time){
-    size_t num_joints = joint_names_.size();
+    ros::spinOnce();
     //trajPublisher.publish()
 }
 
