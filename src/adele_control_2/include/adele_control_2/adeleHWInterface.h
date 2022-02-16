@@ -43,7 +43,8 @@
 #include <std_msgs/Float64.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <trajectory_msgs/JointTrajectory.h>
-
+#include <adele_control_2/adeleTelemetry.h>
+#include <adele_control_2/armComd.h>
 
 #include<transmission_interface/transmission_interface_loader.h>
 #include<array>
@@ -79,9 +80,6 @@ public:
     virtual bool checkForConflict(...) const;
 
 private:
-    void registerActuatorInterfaces();
-
-    bool loadTransmissions();
 
     hardware_interface::ActuatorStateInterface act_state_interface_;
     hardware_interface::PositionActuatorInterface pos_act_interface_;
@@ -101,7 +99,7 @@ private:
         double jointPos;
 
         JointWithPos() : 
-         position(0), velocity(0), effort(0), command(0)
+         position(0.0), velocity(0.0), effort(0.0), command(0.0)
         {}
 
         JointWithPos(double pos):
@@ -119,20 +117,26 @@ private:
 protected:
     std::string name_;
 
-    virtual void loadURDF(const ros::NodeHandle& nh, std::string param_name) override;
+    virtual void loadURDFString(const ros::NodeHandle& nh, std::string param_name);
     //ros::NodeHandle nh_;
     std::string urdf_string;
     //urdf::Model* urdf_model_;
 
-    ros::Subscriber telemetryCallBack;
-    void callBackFn();
+    void registerActuatorInterfaces();
+
+    bool loadTransmissions();
+
+    bool setHardwareInterfaces();
+
+    ros::Subscriber telemetrySub;
+    void callBackFn(const adele_control_2::adeleTelemetry::ConstPtr& telemetry);
     ros::Publisher trajPublisher;
 
     // ros::Timer my_control_loop;
     ros::Duration elapsed_time;
     //double loopHz;
     //boost::shared_ptr<controller_manager::ControllerManager> controllerManager;
-    
+    bool debug;
     //bool directControl;
 };
 }

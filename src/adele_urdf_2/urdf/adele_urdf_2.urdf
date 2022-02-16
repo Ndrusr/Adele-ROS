@@ -3,6 +3,7 @@
      Commit Version: 1.6.0-1-g15f4949  Build Version: 1.6.7594.29634
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot name="adele_urdf_2">
+    <link name="dummy"/>
     <link name="base_link">
         
 <inertial>
@@ -27,6 +28,10 @@
             </geometry>
         </collision>
     </link>
+    <joint name="dummy_joint" type="fixed">
+        <parent link="dummy" />
+        <child link="base_link" />
+    </joint>
     <link name="Link_1">
         
 <inertial>
@@ -56,7 +61,7 @@
         <parent link="base_link" />
         <child link="Link_1" />
         <axis xyz="0 0 1" />
-        <limit lower="-2" upper="2" effort="0" velocity="125.7" />
+        <limit lower="-2" upper="2" effort="0.1" velocity="125.7" />
         <safety_controller soft_upper="1.75" soft_lower="-1.75" k_velocity="0" />
     </joint>
     <link name="Link_2">
@@ -88,7 +93,7 @@
         <parent link="Link_1" />
         <child link="Link_2" />
         <axis xyz="-1 0 0" />
-        <limit lower="-1.57" upper="1.57" effort="0" velocity="125.7" />
+        <limit lower="-1.57" upper="1.57" effort="0.1" velocity="125.7" />
     </joint>
     <link name="Link_3">
         
@@ -119,7 +124,7 @@
         <parent link="Link_2" />
         <child link="Link_3" />
         <axis xyz="-1 0 0" />
-        <limit lower="-1.57" upper="1.57" effort="0" velocity="125.7" />
+        <limit lower="-1.57" upper="1.57" effort="0.1" velocity="125.7" />
     </joint>
     <link name="Link_4">
         
@@ -150,7 +155,7 @@
         <parent link="Link_3" />
         <child link="Link_4" />
         <axis xyz="-1 0 0" />
-        <limit lower="-1.57" upper="1.57" effort="0" velocity="125.7" />
+        <limit lower="-1.57" upper="1.57" effort="0.1" velocity="125.7" />
     </joint>
     <link name="Link_5">
         
@@ -181,7 +186,7 @@
         <parent link="Link_4" />
         <child link="Link_5" />
         <axis xyz="-1 0 0" />
-        <limit lower="-1.57" upper="1.57" effort="0" velocity="125.7" />
+        <limit lower="-1.57" upper="1.57" effort="0.1" velocity="125.7" />
     </joint>
     <link name="Link_6">
         
@@ -211,8 +216,8 @@
         <origin xyz="0.0848 0.0857 0" rpy="-3.1416 0 1.5708" />
         <parent link="Link_5" />
         <child link="Link_6" />
-        <axis xyz="-1 0 0" />
-        <limit lower="-0.785398" upper="0.785398" effort="0" velocity="125.7" />
+        <axis xyz="1 0 0" />
+        <limit lower="-0.785398" upper="0.785398" effort="0.1" velocity="125.7" />
     </joint>
     
 <transmission name="trans_Joint_1">
@@ -268,10 +273,10 @@
     <transmission name="trans_Joint_6">
         <type>transmission_interface/SimpleTransmission</type>
         <joint name="Joint_6">
-            <hardwareInterface>hardware_interface/PositionActuatorInterface</hardwareInterface>
+            <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
         </joint>
         <actuator name="Joint_6_motor">
-            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <hardwareInterface>hardware_interface/PositionActuatorInterface</hardwareInterface>
             <mechanicalReduction>1</mechanicalReduction>
         </actuator>
     </transmission>

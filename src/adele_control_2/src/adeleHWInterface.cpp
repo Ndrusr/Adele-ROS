@@ -56,9 +56,9 @@ AdeleHW::AdeleHW(const ros::NodeHandle& nh, urdf::Model* urdf_model):
     //     urdf_model_ = urdf_model;
 
   // Load rosparams
-    
+    loadURDFString(nh, "robot_description");
     ros::NodeHandle rpnh(
-      nh_, name_);
+      nh_, "hardware_interface");
     ROS_INFO_STREAM("Param access nodeHandle generated");
     
     std::size_t error = 0;
@@ -66,9 +66,11 @@ AdeleHW::AdeleHW(const ros::NodeHandle& nh, urdf::Model* urdf_model):
     // error += !rosparam_shortcuts::get(name_, rpnh, "joints", joint_names_);
     rosparam_shortcuts::shutdownIfError(name_, error);
     ROS_INFO_STREAM("Actuator and joint params retrieved.");
-
+    
+    debug = true;
     //directControl = true;
-
+    telemetrySub = nh_.subscribe<adele_control_2::adeleTelemetry>("/teensy/adeleTelem", 1, &AdeleHW::callBackFn, this);
+    trajPublisher = nh_.advertise<adele_control_2::armComd>("/teensy/armCmd", 1);
     //ros::ServiceClient jntTraj = nh_.serviceClient<control_msgs::FollowJointTrajectoryAction>("followTraj");
     ROS_INFO_STREAM("Constructor Success");
 }
@@ -96,7 +98,8 @@ bool AdeleHW::loadTransmissions(){
             ROS_ERROR_STREAM("Failed to create transmission interface loader. ");
             return false;
         } 
-        
+
+        ROS_INFO_STREAM("Interface loader created.");
   // Perform actual transmission loading
         if (!transmission_loader_->load(urdf_string)) {return false;}
         ROS_INFO_STREAM("Loaded transmissions from URDF");
@@ -150,14 +153,54 @@ void AdeleHW::registerActuatorInterfaces(){
 bool AdeleHW::initializeHardware(){
 // Register interfaces with the RobotHW interface manager, allowing ros_control operation
     ROS_INFO_STREAM("Beginning Hardware Initialization");
-    GenericHWInterface::init();
+    
+    num_joints_ = joint_names_.size();
     registerActuatorInterfaces();
     // Load transmission information from URDF
     if(!loadTransmissions()){return false;}
+    //init();
+    // joint_state_interface_ = *this->get<hardware_interface::JointStateInterface>();
+    // position_joint_interface_ = *this->get<hardware_interface::PositionJointInterface>();
+    
+    setHardwareInterfaces();
+
+    if(debug){
+        ROS_INFO_STREAM("Debugging enabled");
+        hardware_interface::JointHandle backdoorHandle; 
+        try{
+            backdoorHandle = this->get<hardware_interface::PositionJointInterface>()->getHandle(joint_names_[1]);
+        }
+        catch(...){
+            ROS_ERROR_STREAM("HANDLE NOT LATCHED");
+        }
+        ROS_INFO_STREAM("Latched handle");
+    
+        backdoorHandle.setCommand(0.785);
+        ROS_INFO_STREAM("Joint "<<joint_names_[1]<<" command: "<<backdoorHandle.getCommand());
+        p_jnt_to_act_pos_->propagate();
+        ROS_INFO_STREAM("Command for "<<actuators[1].command<<" to be sent to actuator.");
+        ROS_INFO_STREAM("Debug end.");
+        backdoorHandle.setCommand(0.0);
+    }
+
     return true;
 }
 
-void AdeleHW::loadURDF(const ros::NodeHandle& nh, std::string param_name)
+bool AdeleHW::setHardwareInterfaces(){
+    hardware_interface::JointHandle handles[num_joints_];
+
+    for(int i = 0; i < num_joints_; i++){
+        handles[i] = this->get<hardware_interface::PositionJointInterface>()->getHandle(joint_names_[i]);
+        handles[i].setCommand(0.0);
+    }
+    writeCommandsToHardware();
+    updateJointsFromHardware();
+    
+    return true;
+
+}
+
+void AdeleHW::loadURDFString(const ros::NodeHandle& nh, std::string param_name)
 {
     urdf_model_ = new urdf::Model();
     
@@ -205,14 +248,7 @@ void AdeleHW::loadURDF(const ros::NodeHandle& nh, std::string param_name)
     usleep(100000);
     
 } //while
-    
-    if (!urdf_model_->initString(urdf_string))
-        ROS_ERROR_STREAM_NAMED(name_, "Unable to load URDF model");
-    else
-        ROS_DEBUG_STREAM_NAMED(name_, "Received URDF from param server");
-    
-
-} //loadURDF
+} //loadURDFString
 
 /*
 void AdeleHW::reset()
@@ -221,19 +257,38 @@ void AdeleHW::reset()
 }
 */
 
-void AdeleHW::callBackFn(){
+void AdeleHW::callBackFn(const adele_control_2::adeleTelemetry::ConstPtr& telemetry){
+    /* msg structure for reference
+
+    float32[6] efforts  # amps
+    float32[6] vels     # rad/s
+    float32[6] pos      # rad
+    time startSyncTime 
+    uint32 isrTicks # this would overflow if the robot is left on for 497 days straight at 100 hz 
+    uint8 bufferHealth
     
+    */
+
+   /*
+    Reminder for the actuator states:
+    struct JointWithPos{
+        double position;
+        double velocity;
+        double effort;
+        double command;
+        hardware_interface::ActuatorStateHandle stateHandle;
+        hardware_interface::ActuatorHandle handle;
+        double jointPos;}
+   */
+    for(size_t i = 0; i < num_joints_; i++){
+        actuators[i].position = telemetry->pos[i];
+        actuators[i].velocity = telemetry->vels[i];
+    }
+    updateJointsFromHardware();
 }
 
 void AdeleHW::updateJointsFromHardware(){
-    //TODO: provide script to read from MCU
     act_to_jnt_state_->propagate();
-    double posTmp = 0;
-    for(size_t count = 0; count != num_joints_; count++){
-        posTmp = this->get<hardware_interface::JointStateInterface>()->getHandle(joint_names_[count]).getPosition();
-        actuators[count].jointPos = posTmp;
-        
-    }
 
 }
 
@@ -251,19 +306,18 @@ void AdeleHW::read(ros::Duration& elapsed_time){
 
 void AdeleHW::write(ros::Duration& elapsed_time){
     writeCommandsToHardware();
-    size_t num_joints = joint_names_.size();
-    double commandTmp = 0.0;
-
-    trajectory_msgs::JointTrajectoryPoint trajGoal;
-
-    for(size_t count = num_joints; count != -1; count -= 1){
-        commandTmp = actuators[count].command;
-        trajGoal.positions.push_back(commandTmp);
-        trajGoal.effort.push_back(actuators[count].effort);
-        trajGoal.velocities.push_back(actuators[count].velocity);
-        trajGoal.accelerations.push_back(0.0);
+    static adele_control_2::armComd armCmd;
+    /*
+    float32[6] efforts  # amps
+    float32[6] vels     # rad/s
+    float32[6] pos      # rad
+    uint32 msgCounter   # counter to check for missed messages
+    */
+    for(size_t i = 0; i < num_joints_; i++){
+        armCmd.pos[i] = actuators[i].command;
     }
     
+    trajPublisher.publish(armCmd);
 
     //trajPublisher.publish(trajGoal);
 }

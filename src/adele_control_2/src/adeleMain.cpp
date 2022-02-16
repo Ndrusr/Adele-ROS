@@ -50,7 +50,10 @@ int main(int argc, char** argv)
   // Create the hardware interface specific to your robot
   std::shared_ptr<adele_control_2::AdeleHW> adele_hw_interface(
       new adele_control_2::AdeleHW(nh));
-  adele_hw_interface->init();
+  if(!adele_hw_interface->initializeHardware()){
+      ROS_ERROR_STREAM("Hardware initialization failed!");
+      ros::shutdown();
+  };
 
   // Start the control loop
   adele_control_2::AdeleHWControlLoop control_loop(nh, adele_hw_interface);

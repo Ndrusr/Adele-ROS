@@ -52,7 +52,7 @@ protected:
     void update();
     
     ros::NodeHandle nh_;
-    std::string name_ = "AdeleControlLoop";
+    std::string name_ = "adele_control_loop";
 
     ros::Duration desired_update_period;
     double cycle_time_error_threshold;

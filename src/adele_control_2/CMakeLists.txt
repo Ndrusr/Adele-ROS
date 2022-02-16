@@ -59,11 +59,11 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  adeleTelemetry.msg
+  armComd.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -170,6 +170,9 @@ include_directories(
    # sweepLimb ${PROJECT_SOURCE_DIR}/src/sweepLimb.cpp deprecated
   ${PROJECT_SOURCE_DIR}/src/adeleMain.cpp
  )
+ add_executable(adeleSimEcho
+  ${PROJECT_SOURCE_DIR}/src/adeleSimEcho.cpp
+ )
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -192,6 +195,11 @@ include_directories(
 # )
 
 target_link_libraries( adeleMain
+    ${catkin_LIBRARIES}
+    adele_control_2
+)
+
+target_link_libraries( adeleSimEcho
     ${catkin_LIBRARIES}
     adele_control_2
 )
