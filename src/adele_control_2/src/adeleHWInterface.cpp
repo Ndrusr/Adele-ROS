@@ -281,8 +281,8 @@ void AdeleHW::callBackFn(const adele_control_2::adeleTelemetry::ConstPtr& teleme
         double jointPos;}
    */
     for(size_t i = 0; i < num_joints_; i++){
-        actuators[i].position = telemetry->pos[i];
-        actuators[i].velocity = telemetry->vels[i];
+        actuators[i].position = telemetry->pos[i]*M_PI;
+        actuators[i].velocity = telemetry->vels[i]*M_PI;
     }
     updateJointsFromHardware();
 }
@@ -314,7 +314,8 @@ void AdeleHW::write(ros::Duration& elapsed_time){
     uint32 msgCounter   # counter to check for missed messages
     */
     for(size_t i = 0; i < num_joints_; i++){
-        armCmd.pos[i] = actuators[i].command;
+        armCmd.pos[i] = actuators[i].command/M_PI;
+        
     }
     
     trajPublisher.publish(armCmd);
