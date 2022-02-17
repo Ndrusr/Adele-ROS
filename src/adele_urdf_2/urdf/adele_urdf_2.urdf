@@ -61,8 +61,7 @@
         <parent link="base_link" />
         <child link="Link_1" />
         <axis xyz="0 0 1" />
-        <limit lower="-2" upper="2" effort="0.1" velocity="125.7" />
-        <safety_controller soft_upper="1.75" soft_lower="-1.75" k_velocity="125.7" />
+        <limit lower="-2.0" upper="2.0" effort="0.1" velocity="125.7" />
     </joint>
     <link name="Link_2">
         
