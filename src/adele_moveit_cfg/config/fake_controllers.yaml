@@ -1,6 +1,6 @@
 controller_list:
   - name: fake_adele_arm_controller
-    type: $(arg execution_type)
+    type: $(arg fake_execution_type)
     joints:
       - Joint_1
       - Joint_2
@@ -8,6 +8,6 @@ controller_list:
       - Joint_4
       - Joint_5
       - Joint_6
-initial:  # Define initial robot poses.
+initial:  # Define initial robot poses per group
   - group: adele_arm
     pose: home
