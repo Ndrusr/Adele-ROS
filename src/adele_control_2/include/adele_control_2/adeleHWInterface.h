@@ -52,6 +52,10 @@
 #include<boost/shared_ptr.hpp>
 #include<string>
 
+#define HEALTHY_BUFFER 10
+#define RAD_TO_TURNS 0.15915494309
+#define TURNS_TO_RAD 6.28318530718
+
 //This code has largely been repurposed from the ros_control_boilerplate generic_hw_interface script
 //LINK: https://github.com/PickNikRobotics/ros_control_boilerplate
 
@@ -111,8 +115,9 @@ private:
     //std::vector<std::string> joint_names_;
     std::vector<std::string> actuator_names_;
 
+    std::vector<double> joint_position_prev_;
 
-
+    int bufferHealth;
 
 protected:
     std::string name_;

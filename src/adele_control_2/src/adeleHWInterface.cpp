@@ -154,7 +154,7 @@ bool AdeleHW::initializeHardware(){
 // Register interfaces with the RobotHW interface manager, allowing ros_control operation
     ROS_INFO_STREAM("Beginning Hardware Initialization");
     
-    num_joints_ = joint_names_.size();
+    num_joints_ = actuator_names_.size();
     registerActuatorInterfaces();
     // Load transmission information from URDF
     if(!loadTransmissions()){return false;}
@@ -163,6 +163,8 @@ bool AdeleHW::initializeHardware(){
     // position_joint_interface_ = *this->get<hardware_interface::PositionJointInterface>();
     
     setHardwareInterfaces();
+
+    joint_position_prev_.resize(num_joints_);
 
     if(debug){
         ROS_INFO_STREAM("Debugging enabled");
@@ -281,9 +283,10 @@ void AdeleHW::callBackFn(const adele_control_2::adeleTelemetry::ConstPtr& teleme
         double jointPos;}
    */
     for(size_t i = 0; i < num_joints_; i++){
-        actuators[i].position = telemetry->pos[i]*M_PI;
-        actuators[i].velocity = telemetry->vels[i]*M_PI;
+        actuators[i].position = telemetry->pos[i]*TURNS_TO_RAD;
+        actuators[i].velocity = telemetry->vels[i]*TURNS_TO_RAD;
     }
+    bufferHealth = telemetry->bufferHealth;
     updateJointsFromHardware();
 }
 
@@ -305,21 +308,36 @@ void AdeleHW::read(ros::Duration& elapsed_time){
 }
 
 void AdeleHW::write(ros::Duration& elapsed_time){
-    writeCommandsToHardware();
-    static adele_control_2::armComd armCmd;
-    /*
+
+     /*
     float32[6] efforts  # amps
     float32[6] vels     # rad/s
     float32[6] pos      # rad
     uint32 msgCounter   # counter to check for missed messages
     */
-    for(size_t i = 0; i < num_joints_; i++){
-        armCmd.pos[i] = actuators[i].command/M_PI;
+
+    writeCommandsToHardware();
+    static adele_control_2::armComd armCmd;
+
+    bool changed{false};
+
+    for(int i = 0; i < num_joints_; i++){
+        if(actuators[i].command != joint_position_prev_[i]){
+            changed = true;
+        }
+    }
+
+    if(changed){
+        for(size_t i = 0; i < num_joints_; i++){
+            armCmd.pos[i] = actuators[i].command*RAD_TO_TURNS;
+            joint_position_prev_[i] = actuators[i].command;
+        }
+        if(bufferHealth < HEALTHY_BUFFER){
+            trajPublisher.publish(armCmd);
+            armCmd.msgCounter += 1;
+        }
         
     }
-    
-    trajPublisher.publish(armCmd);
-
     //trajPublisher.publish(trajGoal);
 }
 
