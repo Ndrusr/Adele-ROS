@@ -1,20 +1,50 @@
+/*********************************************************************
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2015, University of Colorado, Boulder
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Univ of CO, Boulder nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
+/* Author: Timothy Ng
+    Desc: Hardware Interface for the 6DOF cooking robot arm "ADELE"
+*/
+
 #ifndef ADELE_CONTROL_2_ADELEHWINTERFACE
 #define ADELE_CONTROL_2_ADELEHWINTERFACE
 
-#include <ros/ros.h>
-#include <urdf/model.h>
+#include <ros_control_boilerplate/generic_hw_interface.h>
 
-
-#include <hardware_interface/robot_hw.h>
-#include <hardware_interface/joint_state_interface.h>
-#include <hardware_interface/joint_command_interface.h>
-#include <controller_manager/controller_manager.h>
-#include <joint_limits_interface/joint_limits.h>
-#include <joint_limits_interface/joint_limits_interface.h>
-#include <joint_limits_interface/joint_limits_rosparam.h>
-#include <joint_limits_interface/joint_limits_urdf.h>
 #include <std_msgs/Float64.h>
-
+#include <control_msgs/FollowJointTrajectoryAction.h>
+#include <trajectory_msgs/JointTrajectory.h>
+#include <adele_control_2/adeleTelemetry.h>
+#include <adele_control_2/armComd.h>
 
 #include<transmission_interface/transmission_interface_loader.h>
 #include<array>
@@ -22,41 +52,38 @@
 #include<boost/shared_ptr.hpp>
 #include<string>
 
+#define HEALTHY_BUFFER 10
+#define RAD_TO_TURNS 0.15915494309
+#define TURNS_TO_RAD 6.28318530718
+
 //This code has largely been repurposed from the ros_control_boilerplate generic_hw_interface script
 //LINK: https://github.com/PickNikRobotics/ros_control_boilerplate
 
 namespace adele_control_2{
-class AdeleHW: public hardware_interface::RobotHW{
+class AdeleHW: public ros_control_boilerplate::GenericHWInterface{
 public:
-    AdeleHW();
-    AdeleHW(const ros::NodeHandle& nh, urdf::Model* urdf_model);
-    ~AdeleHW();
-
    
+    AdeleHW(const ros::NodeHandle& nh, urdf::Model* urdf_model = NULL);
 
     bool initializeHardware();
     
-
     void updateJointsFromHardware();
     void writeCommandsToHardware();
+    
+    
+    virtual void read(ros::Duration& elapsed_time);
+    virtual void write(ros::Duration& elapsed_time);
 
-    void update(const ros::TimerEvent& ev);
-    void read(ros::Duration& elapsed_time);
-    void write(ros::Duration& elapsed_time);
-
-    void read(ros::Time& time, ros::Duration& period);
-    void write(ros::Time& time, ros::Duration& period);
     //void reset();
 
-    void directCommandWrite(int linkNo, double commandValue);
-    double directCommandAccess(int linkNo);
+    //void directCommandWrite(int linkNo, double commandValue);
+    //double directCommandAccess(int linkNo);
+
+    virtual void enforceLimits(ros::Duration& period);
 
     virtual bool checkForConflict(...) const;
 
 private:
-    void registerActuatorInterfaces();
-
-    bool loadTransmissions();
 
     hardware_interface::ActuatorStateInterface act_state_interface_;
     hardware_interface::PositionActuatorInterface pos_act_interface_;
@@ -76,7 +103,7 @@ private:
         double jointPos;
 
         JointWithPos() : 
-         position(0), velocity(0), effort(0), command(0)
+         position(0.0), velocity(0.0), effort(0.0), command(0.0)
         {}
 
         JointWithPos(double pos):
@@ -85,31 +112,37 @@ private:
     };
     JointWithPos actuators[6];
     
-    std::vector<std::string> joint_names_;
+    //std::vector<std::string> joint_names_;
     std::vector<std::string> actuator_names_;
 
-    double homePose[6] = {0, 1.57, 1.57, 1.567, -1.57, 0};
+    std::vector<double> joint_position_prev_;
 
-
-
+    int bufferHealth;
 
 protected:
     std::string name_;
 
-    virtual void loadURDF(const ros::NodeHandle& nh, std::string param_name);
-    ros::NodeHandle nh_;
+    virtual void loadURDFString(const ros::NodeHandle& nh, std::string param_name);
+    //ros::NodeHandle nh_;
     std::string urdf_string;
-    urdf::Model* urdf_model_;
+    //urdf::Model* urdf_model_;
 
+    void registerActuatorInterfaces();
 
+    bool loadTransmissions();
+
+    bool setHardwareInterfaces();
+
+    ros::Subscriber telemetrySub;
+    void callBackFn(const adele_control_2::adeleTelemetry::ConstPtr& telemetry);
     ros::Publisher trajPublisher;
 
     // ros::Timer my_control_loop;
     ros::Duration elapsed_time;
-    double loopHz;
-    boost::shared_ptr<controller_manager::ControllerManager> controllerManager;
-    // std::array<ros::Subscriber, 6> trajSub;
-    bool directControl;
+    //double loopHz;
+    //boost::shared_ptr<controller_manager::ControllerManager> controllerManager;
+    bool debug;
+    //bool directControl;
 };
 }
 #endif 

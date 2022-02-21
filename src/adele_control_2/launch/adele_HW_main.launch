@@ -1,0 +1,43 @@
+<launch>
+
+    <!-- RVIZ -->
+
+        <!--Load URDF to rosparam server-->
+        <param name = "robot_description" textfile = "$(find adele_urdf_2)/urdf/adele_urdf_2.urdf"/>
+
+        <!--Show in RViz-->
+        <node name = "rviz" pkg = "rviz" type = "rviz" args = "-d $(find adele_control_2)/basic.rviz"/>
+
+    <!-- CORE -->
+
+        <!-- Load controllers.yaml to server-->
+        <rosparam file ="$(find adele_control_2)/config/adele_controllers.yaml" command = "load"/>
+
+        <!-- Main Node -->
+        <node name = "adeleMain" pkg ="adele_control_2" type = "adeleMain" output = "screen"/>
+
+        <!-- Load controller manager -->
+        <node name="ros_control_controller_manager" pkg="controller_manager" type="controller_manager" respawn="false" 
+        output="screen" args="spawn joint_state_controller position_trajectory_controller" />
+
+        <!-- Convert joint states to tf transforms-->
+        <node name = "robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+    <!-- MOVEIT -->
+
+        <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
+        <arg name="load_robot_description" default="true" />
+
+        <!-- Remap follow_joint_trajectory -->
+        <remap from="/joint_trajectory_action" to="/position_trajectory_controller/follow_joint_trajectory"/>
+
+        <include file="$(find adele_moveit_cfg)/launch/move_group.launch">
+            <arg name="allow_trajectory_execution" value="true"/>
+            <arg name="moveit_controller_manager" value="ros_control" />
+            <arg name="load_robot_description" value="$(arg load_robot_description)"/>
+            <arg name="info" value="true"/> 
+        </include>
+        
+
+
+    </launch>

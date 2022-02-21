@@ -1,0 +1,15 @@
+<launch>
+
+    <include file="$(find adele_control_2)/launch/adele_HW_main.launch" />
+
+    <!--rosserial to teensy-->
+    <node pkg="rosserial_server" type="serial_node" name="rosserial_server_main" output="screen" respawn="true"> 
+        <rosparam>
+            port: /dev/ttyACM1
+            baud: 115200
+            spin_rate: 0.5
+
+        </rosparam>
+    </node>
+
+</launch>

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(adele_control_2)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -59,11 +59,11 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  adeleTelemetry.msg
+  armComd.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -166,8 +166,12 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/adele_control_2_node.cpp)
- add_executable(
-   sweepLimb ${PROJECT_SOURCE_DIR}/src/sweepLimb.cpp
+ add_executable( adeleMain
+   # sweepLimb ${PROJECT_SOURCE_DIR}/src/sweepLimb.cpp deprecated
+  ${PROJECT_SOURCE_DIR}/src/adeleMain.cpp
+ )
+ add_executable(adeleSimEcho
+  ${PROJECT_SOURCE_DIR}/src/adeleSimEcho.cpp
  )
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -183,9 +187,21 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
-target_link_libraries( sweepLimb 
-  ${catkin_LIBRARIES}
-  adele_control_2
+## SweepLimb has been deprecated
+
+# target_link_libraries( sweepLimb 
+#   ${catkin_LIBRARIES}
+#   adele_control_2
+# )
+
+target_link_libraries( adeleMain
+    ${catkin_LIBRARIES}
+    adele_control_2
+)
+
+target_link_libraries( adeleSimEcho
+    ${catkin_LIBRARIES}
+    adele_control_2
 )
 
 #############
