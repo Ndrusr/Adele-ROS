@@ -26,17 +26,17 @@ Lorem ipsum dolor
 The Adele-ROS workspace has 3 main packages:
 1. adele_control_2, the RobotHW package (for ros_control use)
 2. adele_moveit_config, the moveit package (for moveit to access the URDF)
-3. adele_urdf_1, the URDF package (provides the robot model and data)
+3. adele_urdf_2, the URDF package (provides the robot model and data)
 
 # adele_control_2
 
 There are three critical scripts for adele_control_2:
-1. [AdeleHWInterface.cpp](#AdeleHWInterface)
-2. [FollowJointTrajectoryServer.cpp](#FollowJointTrajectoryServer)
+1. [adeleHWInterface.cpp](#AdeleHWInterface)
+2. [adeleMain.cpp](#FollowJointTrajectoryServer)
 3. AdeleControlLoop.cpp
 
 # AdeleHWInterface
-Serves to define the AdeleHW class.
+Serves to define the AdeleHW class, which is derived from the GenericHWInterface Class.
 ## AdeleHW(const ros::NodeHandle& nh, urdf::Model* urdf_model)
 ---
 Constructor, accepts 2 parameters.
@@ -49,32 +49,33 @@ The AdeleHW() constructor has a few responsibilities:
 2. It needs to generate lists of all the actuator and joint names for the object
 3. It needs to set up any publishers/subscribers the node will need for running the robot
 
-### 1. Finding the URDF if not specified
+The loading of the URDF and the generation of joint names are taken care of by the GenericHWInterface class constructor. However, the AdeleHW constructor also needs to load the URDF in string form in order to set up the transmission objects
+
+### 1. Loading the URDF string
 ---
 ```cpp
-if (urdf_model == NULL)
-  loadURDF(nh, "/robot_description");
-else
-  urdf_model_ = urdf_model;
+  loadURDFString(nh, "robot_description");
 ```
 The constructor uses the provided node handle to retrieve the parameter "/robot_description" (the URDF) from the ROS parameter server. You will need to use a launch file to upload the URDF as a parameter with this exact name to the parameter server.
 
-### 2. Generating lists of all actuator and joint names
+### 2. Generating lists of all actuator names
 ---
 ```cpp
 controllerManager.reset(new controller_manager::ControllerManager(this, nh_));
     
     std::size_t error = 0;
     error += !rosparam_shortcuts::get(name_, rpnh, "actuators", actuator_names_);
-    error += !rosparam_shortcuts::get(name_, rpnh, "joints", joint_names_);
     rosparam_shortcuts::shutdownIfError(name_, error);
     ROS_INFO_STREAM("Actuator and joint params retrieved.");
 ```
-Using a node handle derived from the supplied node handle, the constructor retrieves params **"actuators"** and **"joints"** of namespace **name_** (in this case, **"adele_hw_interface"**) from the ros parameter server. If either list cannot be retrieved, the node will shut itself down and throw an error.
+Using a node handle derived from the supplied node handle, the constructor retrieves params **"actuators"**  of namespace **name_** (in this case, **"adele_hw_interface"**) from the ros parameter server. If the list cannot be retrieved, the node will shut itself down and throw an error.
 
 ### 3. Setting up publishers and subscribers
 ---
-This portion is to be completed when we confirm all the publishers the adele_control_2 node requires.
+One publisher and one subscriber each are required for serial communication with the Teensy microcontroller.
+1. **telemetrySub** listens for position feedback from the Teensy
+2. **trajPublisher** publishes position commands to the Teensy
+Both of these use custom ROS messages, which we will expand on later.
 
 # initializeHardware()
 Starts the object's controllers, calls the methods **registerActuatorInterfaces()** and **loadTransmissions()**. 
@@ -140,8 +141,6 @@ This method to get a handle for the controller of the joint you need is slightly
 handle.setCommand(value)
 ```
 This command value will be translated to a actuator command value by the write() method, which we will discuss later.
-# FollowJointTrajectoryServer
-Defines the action server running the FollowJointTrajectory action, the FollowAction object. This serves as the main means of accepting plotted trajectories from moveit!.
-##### FollowAction(const ros::NodeHandle& nh, std::string name)
-Constructor, accepts 2 parameters and starts the action server
+
+Note that the hardware interfaces here will serve as your required **action server** for moveit to make requests from.
 
