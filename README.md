@@ -17,11 +17,13 @@ Then in a separate window, run:
 > rospack list
 
 If you can find all of the following in the list, you're good to go:
-- TBC
+- moveit
+- ros_control
+- ros_control_boilerplate
 
 # Installing prerequisites
+The Adele-ROS project requires Boost Library installed to access the shared_ptr library. All other prerequisites are installed with the ROS install.
 
-Lorem ipsum dolor
 # Documentation
 The Adele-ROS workspace has 3 main packages:
 1. adele_control_2, the RobotHW package (for ros_control use)
